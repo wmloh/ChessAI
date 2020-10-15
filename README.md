@@ -30,6 +30,6 @@
 #           [m,n,o,p]]
 
 assert b == board[0, 1] == 'QUEN_B'
-assert 0 == board[3, 2] == 'QUEN_W'
+assert o == board[3, 2] == 'KING_W'
 ```
 
