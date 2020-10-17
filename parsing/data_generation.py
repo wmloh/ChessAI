@@ -95,9 +95,9 @@ def generate_dataset(data_path, LIMIT=-1, sampling_rate=0.1):
         count = 1
         while (count <= LIMIT or LIMIT == -1) and game is not None:
             sample_intermediate_states(game,
-                                       all_states,
-                                       all_labels,
-                                       all_actions,
+                                       states=all_states,
+                                       labels=all_labels,
+                                       actions=all_actions,
                                        sampling_rate=sampling_rate)
             game = chess.pgn.read_game(f)
             count += 1
