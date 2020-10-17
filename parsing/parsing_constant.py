@@ -42,5 +42,20 @@ MAP_SYMBOL = {
     'k': KING_B
 }
 
+FLIP_MAP_SYMBOL = {
+    'p': PAWN_W,
+    'b': BISH_W,
+    'n': KNHT_W,
+    'r': ROOK_W,
+    'q': QUEN_W,
+    'k': KING_W,
+    'P': PAWN_B,
+    'B': BISH_B,
+    'N': KNHT_B,
+    'R': ROOK_B,
+    'Q': QUEN_B,
+    'K': KING_B
+}
+
 # assumes one-to-one correspondence
 INVERSE_MAP_SYMBOL = {v: k for k, v in MAP_SYMBOL.items()}
