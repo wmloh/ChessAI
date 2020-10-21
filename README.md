@@ -9,6 +9,7 @@
 ## Game Data
 
 * The raw data is in PGN format 
+* Upper case symbols refers to white pieces and lower case symbols refer to black pieces
 * The game state for machine learning (called `Tensor`) will be a `np.ndarray` with shape `(8,8,13)` (tentatively).
 * For supervised network, if the labels `y = 1` means that white wins and `y = -1` means black wins. Otherwise, `y = 0` means a draw
 * Labels for whether the state leads to win or lose result will be stored as a CSV file (use Pandas to read and write; learn more [here](https://www.learnpython.org/en/Pandas_Basics))

@@ -1,0 +1,7 @@
+.idea/
+__pycache__
+*.joblib
+*.zip
+*.csv
+*.pgn
+*.7z
