@@ -34,3 +34,8 @@ assert b == board[0, 1] == 'QUEN_B'
 assert o == board[3, 2] == 'KING_W'
 ```
 
+## Policy Model
+
+* The policy model always takes the perspective of the white player so remember to flip `Tensor` whenever necessary
+* The output of the model is `action` and `value`, with shapes `(:, 128)` and `(:, 1)` respectively. To get the original format of `action`, simply call `action.reshape(8,8,2)`
+
