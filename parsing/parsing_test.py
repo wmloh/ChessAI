@@ -1,5 +1,4 @@
 import unittest
-
 import numpy as np
 
 from parsing.math_encode import tensor_encode, tensor_decode, get_action_tensor, tensor_decode_fen
@@ -29,13 +28,25 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(tensor_1.shape, (8, 8, 13))
         self.assertTrue((tensor_1 == self.STARTING_STATE).all())
 
-        # save_tensor_data(tensors)
-        # save_labels_data(labels)
-
         states, labels, actions = generate_dataset('../data/sample_data.pgn', LIMIT=3)
 
         self.assertEqual(states.shape[1:], (8, 8, 13))
         self.assertEqual(actions.shape[1:], (8, 8, 2))
+
+        test_state = states[34, ...]
+
+        EXPECTED_FLIP = [[EMPTY, EMPTY, EMPTY, BISH_W, EMPTY, EMPTY, EMPTY, EMPTY],
+                         [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, PAWN_W, EMPTY, PAWN_W],
+                         [EMPTY, EMPTY, EMPTY, EMPTY, PAWN_W, EMPTY, PAWN_W, PAWN_B],
+                         [EMPTY, EMPTY, EMPTY, EMPTY, KING_W, EMPTY, PAWN_B, EMPTY],
+                         [BISH_B, EMPTY, EMPTY, PAWN_W, EMPTY, EMPTY, EMPTY, EMPTY],
+                         [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, ROOK_B, EMPTY],
+                         [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, KING_B, EMPTY],
+                         [EMPTY, EMPTY, EMPTY, EMPTY, ROOK_W, EMPTY, EMPTY, EMPTY]]
+
+        self.assertTrue((np.rot90(test_state, 2) == EXPECTED_FLIP).all())
+
+
 
     def test_decodes_state(self):
         test_tensor = np.array(self.STARTING_STATE)

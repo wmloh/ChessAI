@@ -34,10 +34,11 @@ def tensor_encode(board, flip=False):
             row.append(mapper[symbol])
     tensor_list.append(row)
 
+    tensor = np.array(tensor_list, dtype=np.int8)
     if flip:
-        tensor_list = list(reversed(tensor_list))
+        tensor = np.rot90(tensor, 2)  # rotates twice
 
-    return np.array(tensor_list, dtype=np.int8)
+    return tensor
 
 
 def tensor_decode(state):
@@ -97,8 +98,8 @@ def get_action_tensor(uci_str, flip=False):
     origin, dest = uci_str[:2], uci_str[2:]
 
     if flip:
-        action_tensor[int(origin[1]) - 1, ord(origin[0]) - ASCII_a, 0] = 1
-        action_tensor[int(dest[1]) - 1, ord(dest[0]) - ASCII_a, 1] = 1
+        action_tensor[int(origin[1]) - 1, 7 - ord(origin[0]) + ASCII_a, 0] = 1
+        action_tensor[int(dest[1]) - 1, 7 - ord(dest[0]) + ASCII_a, 1] = 1
     else:
         action_tensor[8 - int(origin[1]), ord(origin[0]) - ASCII_a, 0] = 1
         action_tensor[8 - int(dest[1]), ord(dest[0]) - ASCII_a, 1] = 1
