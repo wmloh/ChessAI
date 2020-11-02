@@ -1,0 +1,1 @@
+BOARD_SQUARES = 64
