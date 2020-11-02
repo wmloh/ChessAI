@@ -28,6 +28,7 @@ BOTH_DRAW = '1/2-1/2'
 
 ### MAPPINGS ###
 MAP_SYMBOL = {
+    '.': EMPTY,
     'P': PAWN_W,
     'B': BISH_W,
     'N': KNHT_W,
@@ -43,6 +44,7 @@ MAP_SYMBOL = {
 }
 
 FLIP_MAP_SYMBOL = {
+    '.': EMPTY,
     'p': PAWN_W,
     'b': BISH_W,
     'n': KNHT_W,
@@ -59,3 +61,6 @@ FLIP_MAP_SYMBOL = {
 
 # assumes one-to-one correspondence
 INVERSE_MAP_SYMBOL = {v: k for k, v in MAP_SYMBOL.items()}
+
+# FEN default options allowing white next turn, all sides castling, no enpassant, and no 50-move limit
+FEN_DEFAULT = ' w KQkq - 0 0'
