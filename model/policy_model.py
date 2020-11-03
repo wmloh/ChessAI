@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from model.policy_utils import KERNEL_INIT, tanh_loss
 from tensorflow.keras.models import Model
@@ -12,15 +13,15 @@ class PolicyModel:
     Inspired by: "Mastering the Game of Go without Human Knowledge" - Silver et al.
     '''
 
-    def __init__(self, ground_dim, output_dim):
+    def __init__(self, state_dim, output_dim):
         '''
         Construct for a PolicyModel
 
-        :param ground_dim: tuple(int, int, int) - 3D dimensions of the board state
+        :param state_dim: tuple(int, int, int) - 3D dimensions of the board state
         :param output_dim: tuple(int, int) - flattened dimensions of policy output and value output respectively
         '''
         self.model = None
-        self.ground_dim = ground_dim
+        self.state_dim = state_dim
         self.policy_dim = output_dim[0]
         self.value_dim = output_dim[1]
 
@@ -39,10 +40,10 @@ class PolicyModel:
             raise ValueError('Model has already been constructed.'
                              ' Set force_reconstruct to True to overwrite it')
 
-        x_length, y_length, z_depth = self.ground_dim
+        x_length, y_length, z_depth = self.state_dim
 
         # INPUT
-        input_layer = Input(shape=self.ground_dim)
+        input_layer = Input(shape=self.state_dim)
         conv1 = Conv2D(filters=64, kernel_size=(3, 3), strides=1, padding='same',
                        kernel_initializer=KERNEL_INIT)(input_layer)
 
@@ -77,7 +78,7 @@ class PolicyModel:
         dense_value2 = Dense(64,
                              kernel_initializer=KERNEL_INIT)(rec_value2)
         rec_value3 = PReLU()(dense_value2)
-        dense_value3 = Dense(self.value_dim, activation='tanh',
+        dense_value3 = Dense(self.value_dim, activation='sigmoid',
                              kernel_initializer=KERNEL_INIT,
                              name='value')(rec_value3)
 
@@ -85,7 +86,7 @@ class PolicyModel:
         self.model = Model(inputs=input_layer, outputs=[dense_policy2, dense_value3])
 
         # compile model
-        self.model.compile(optimizer='adam', loss=['categorical_crossentropy', tanh_loss],
+        self.model.compile(optimizer='adam', loss=['categorical_crossentropy', 'binary_crossentropy'],
                            metrics={'policy': 'categorical_accuracy', 'value': 'accuracy'})
 
     def train(self, **kwargs):
@@ -96,14 +97,36 @@ class PolicyModel:
         '''
         self.model.fit(**kwargs)
 
-    def infer(self, ground):
+    def predict(self, state, **kwargs):
         '''
-        Wrapper function to perform a single prediction with the trained model
+        Wrapper function to make a raw prediction dictated by the manner the model was trained under.
 
-        :param ground: np.array - ground for prediction (dimensions must be identical to self.ground_dim)
+        NOTE: This shouldn't be used unless necessary.
+
+        :param state: np.array - state for prediction
+        :return: list(POLICY_OUTPUT, VALUE_OUTPUT)
+        '''
+        return self.model.predict([state], **kwargs)
+
+    def infer(self, state, **kwargs):
+        '''
+        Wrapper function to perform n predictions with the trained model and
+            returns the output as a tuple in the following format:
+            * np.ndarray(shape=(n, 8, 8, 2))
+            * np.array(shape=(n,))
+
+        :param state: np.array(shape=(8,8,13)) - state for prediction
         :return: tuple(POLICY_OUTPUT, VALUE_OUTPUT) - policy and value prediction using the model
         '''
-        return tuple(self.model.predict([ground]))
+        if len(state.shape) == 3:  # auto-reshapes if only one state is passed
+            state = state.reshape(1, *state.shape)
+
+        act, val = self.model.predict([state.astype(np.float32)], **kwargs)
+
+        act = act.reshape(-1, self.state_dim[0], self.state_dim[1], 2)
+        val = val.reshape(-1)
+
+        return act, val
 
     def save(self, file_path):
         '''
@@ -123,7 +146,7 @@ class PolicyModel:
         :return: PolicyModel
         '''
         # load and extract information
-        model = tf.keras.models.load_model(file_path, custom_objects={'tanh_loss', tanh_loss})
+        model = tf.keras.models.load_model(file_path)
         input_shape = model.input_shape[1:]
         output_shape = model.output_shape
 
@@ -155,5 +178,3 @@ class PolicyModel:
         rec2 = PReLU()(add1)
 
         return rec2
-
-

@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 from joblib import load
 from model.policy_model import PolicyModel
 
@@ -11,6 +12,13 @@ if __name__ == '__main__':
 
     # flattens the action matrices
     actions = actions.reshape(-1, 128)
+
+    checkpoint_filepath = 'checkpoint/model-{epoch:02d}.hdf5'
+    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+        filepath=checkpoint_filepath,
+        save_weights_only=False,
+        monitor='val_acc',
+        save_best_only=False)
 
     policy = PolicyModel(states.shape[1:], (actions.shape[1], 1))
     policy.construct(12)
