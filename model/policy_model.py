@@ -25,13 +25,14 @@ class PolicyModel:
         self.policy_dim = output_dim[0]
         self.value_dim = output_dim[1]
 
-    def construct(self, num_blocks, force_reconstruct=False):
+    def construct(self, num_blocks, sandwich_blocks, force_reconstruct=False):
         '''
         Builds the model with the specified number of residual blocks.
 
         The outputs are passed into the policy and value head.
 
         :param num_blocks: int - Number of residual blocks to construct
+        :param sandwich_blocks: int - Number of residual blocks between source and target output
         :param force_reconstruct: bool - if True, overwrites the current model
         :return: tf.keras.models.Model - combined policy and value neural network
         '''
@@ -47,24 +48,49 @@ class PolicyModel:
         conv1 = Conv2D(filters=64, kernel_size=(3, 3), strides=1, padding='same',
                        kernel_initializer=KERNEL_INIT)(input_layer)
 
+        # skip connection for target policy
+        skip_src_tgt_start = conv1
+
         # RESIDUAL BLOCKS
         current_residual_block = conv1
         for block in range(num_blocks):
             current_residual_block = PolicyModel.add_residual_block(current_residual_block)
 
-        # POLICY HEAD
-        conv_policy = Conv2D(filters=2, kernel_size=(1, 1), strides=1, padding='same',
-                             kernel_initializer=KERNEL_INIT)(current_residual_block)
-        bn_policy = BatchNormalization()(conv_policy)
-        rec_policy1 = PReLU()(bn_policy)
-        flatten_policy = Flatten()(rec_policy1)
-        dense_policy1 = Dense(x_length * y_length,
-                              kernel_initializer=KERNEL_INIT)(flatten_policy)
-        rec_policy2 = PReLU()(dense_policy1)
-        dense_policy2 = Dense(self.policy_dim,
-                              activation='sigmoid',
-                              kernel_initializer=KERNEL_INIT,
-                              name='policy')(rec_policy2)
+        # SOURCE POLICY HEAD
+        conv_src_policy = Conv2D(filters=2, kernel_size=(1, 1), strides=1, padding='same',
+                                 kernel_initializer=KERNEL_INIT)(current_residual_block)
+        bn_src_policy = BatchNormalization()(conv_src_policy)
+        rec_src_policy1 = PReLU()(bn_src_policy)
+        flatten_src_policy = Flatten()(rec_src_policy1)
+        dense_src_policy1 = Dense(x_length * y_length,
+                                  kernel_initializer=KERNEL_INIT)(flatten_src_policy)
+        rec_src_policy2 = PReLU()(dense_src_policy1)
+        dense_src_policy2 = Dense(self.policy_dim,
+                                  activation='softmax',
+                                  kernel_initializer=KERNEL_INIT,
+                                  name='policy_src')(rec_src_policy2)
+
+        # gets initial features from the start
+        skip_src_tgt_end = Add()([current_residual_block, skip_src_tgt_start])
+
+        # SANDWICH BLOCKS
+        current_residual_block = skip_src_tgt_end
+        for block in range(sandwich_blocks):
+            current_residual_block = PolicyModel.add_residual_block(current_residual_block)
+
+        # TARGET POLICY HEAD
+        conv_tgt_policy = Conv2D(filters=2, kernel_size=(1, 1), strides=1, padding='same',
+                                 kernel_initializer=KERNEL_INIT)(current_residual_block)
+        bn_tgt_policy = BatchNormalization()(conv_tgt_policy)
+        rec_tgt_policy1 = PReLU()(bn_tgt_policy)
+        flatten_tgt_policy = Flatten()(rec_tgt_policy1)
+        dense_tgt_policy1 = Dense(x_length * y_length,
+                                  kernel_initializer=KERNEL_INIT)(flatten_tgt_policy)
+        rec_tgt_policy2 = PReLU()(dense_tgt_policy1)
+        dense_tgt_policy2 = Dense(self.policy_dim,
+                                  activation='softmax',
+                                  kernel_initializer=KERNEL_INIT,
+                                  name='policy_tgt')(rec_tgt_policy2)
 
         # VALUE HEAD
         conv_value = Conv2D(filters=1, kernel_size=(1, 1), strides=1, padding='same',
@@ -83,11 +109,15 @@ class PolicyModel:
                              name='value')(rec_value3)
 
         # encapsulated model
-        self.model = Model(inputs=input_layer, outputs=[dense_policy2, dense_value3])
+        self.model = Model(inputs=input_layer, outputs=[dense_src_policy2, dense_tgt_policy2, dense_value3])
 
         # compile model
-        self.model.compile(optimizer='adam', loss=['categorical_crossentropy', 'binary_crossentropy'],
-                           metrics={'policy': 'categorical_accuracy', 'value': 'accuracy'})
+        self.model.compile(optimizer='adam', loss=['categorical_crossentropy',
+                                                   'categorical_crossentropy',
+                                                   'mean_squared_error'],
+                           metrics={'policy_src': 'categorical_accuracy',
+                                    'policy_tgt': 'categorical_accuracy',
+                                    'value': 'mean_squared_error'})
 
     def train(self, **kwargs):
         '''
@@ -108,25 +138,32 @@ class PolicyModel:
         '''
         return self.model.predict([state], **kwargs)
 
-    def infer(self, state, **kwargs):
+    def infer(self, state, decimal=None, **kwargs):
         '''
         Wrapper function to perform n predictions with the trained model and
             returns the output as a tuple in the following format:
-            * np.ndarray(shape=(n, 8, 8, 2))
+            * np.ndarray(shape=(n, 8, 8))
+            * np.ndarray(shape=(n, 8, 8))
             * np.array(shape=(n,))
 
-        :param state: np.array(shape=(8,8,13)) - state for prediction
-        :return: tuple(POLICY_OUTPUT, VALUE_OUTPUT) - policy and value prediction using the model
+        :param state: np.array(shape=(n,8,8,13)) - state for prediction
+        :param decimal: None/int - number of decimal places to round off to (no rounding if None)
+        :return: tuple(SRC_OUTPUT, TGT_OUTPUT, VAL_OUTPUT) - policy and value prediction using the model
         '''
         if len(state.shape) == 3:  # auto-reshapes if only one state is passed
             state = state.reshape(1, *state.shape)
 
-        act, val = self.model.predict([state.astype(np.float32)], **kwargs)
+        src, tgt, val = self.model.predict([state.astype(np.float32)], **kwargs)
 
-        act = act.reshape(-1, self.state_dim[0], self.state_dim[1], 2)
+        src = src.reshape(-1, self.state_dim[0], self.state_dim[1])
+        tgt = tgt.reshape(-1, self.state_dim[0], self.state_dim[1])
         val = val.reshape(-1)
 
-        return act, val
+        if decimal is not None:
+            src = np.around(src, decimal)
+            tgt = np.around(tgt, decimal)
+
+        return src, tgt, val
 
     def save(self, file_path):
         '''
@@ -151,7 +188,7 @@ class PolicyModel:
         output_shape = model.output_shape
 
         # construct a new PolicyModel
-        policy = PolicyModel(input_shape, (output_shape[0][1], output_shape[1][1]))
+        policy = PolicyModel(input_shape, (output_shape[0][1], output_shape[2][1]))
         policy.model = model
 
         return policy
