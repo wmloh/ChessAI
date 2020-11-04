@@ -88,7 +88,7 @@ def coords_to_chess_square(coord):
     return int(row * BOARD_DIM[0] + col)
 
 
-def get_action(board, act):
+def get_action(board, sources, targets):
     '''
     Returns the UCI string notation of the action to take given policy network action
         This is done by:
@@ -96,11 +96,11 @@ def get_action(board, act):
             * selecting all moves with a source square with highest probability
             * selecting the target with maximum probability from this subset
 
-    :param act: - np.ndarray - the action output from model.policy_model.infer
+    :param sources: - np.ndarray - action policy from PolicyModel.infer
+    :param targets - np.ndarray - source policy from PolicyModel.infer
     :param board: chess.Board - current game board
     :return: str
     '''
-    sources, targets = np.dsplit(act, 2)
     sorted_sources = sorted_probs(sources)
     legal_moves = dict()
     for move in LegalMoveGenerator(board):
