@@ -10,10 +10,10 @@ if __name__ == '__main__':
     PLAYER_SIDE = 'w'
 
     if INTERACTIVE_PLAY:
-        play_loop = PlayLoop(PolicyModel.load('../model/trained/model_0411.hdf5'))
+        play_loop = PlayLoop(PolicyModel.load('../model/trained/model_0611.hdf5'))
         VERBOSE = True
     else:
-        play_loop = PlayLoop(PolicyModel.load('../model/trained/model_0411.hdf5'),
+        play_loop = PlayLoop(PolicyModel.load('../model/trained/model_0611.hdf5'),
                              secondary_policy='same')
         VERBOSE = False
 

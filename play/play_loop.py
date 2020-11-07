@@ -54,8 +54,8 @@ class PlayLoop:
             raise ValueError(f'Expected "w" or "b" for player_side but given {player_side}')
 
         self.board = chess.Board()
+        self.keep_trace = keep_trace
         if keep_trace:
-            self.keep_trace = keep_trace
             self.trace = list()
 
     def reset(self):
@@ -76,6 +76,8 @@ class PlayLoop:
         '''
         if self.board is None:
             raise RuntimeError('init_game was not called to configure game settings!')
+        if self.board.is_game_over():
+            raise RuntimeError('Game has already ended. Call reset and init_gram before calling loop')
 
         trace_collector = list()
 
@@ -148,11 +150,14 @@ class PlayLoop:
             policy = external_policy
             flip = not flip
 
-        src, tgt, _ = policy.infer(tensor_encode(self.board, flip=flip))
+        src, tgt, _ = policy.infer(tensor_encode(self.board, mirror=flip))
 
-        if flip:
-            src = np.rot90(src, 2)
-            tgt = np.rot90(tgt, 2)
+        if flip:  # perform mirror flips
+            src = np.flip(src[0, ...], 0)
+            tgt = np.flip(tgt[0, ...], 0)
+        else:
+            src = src[0, ...]
+            tgt = tgt[0, ...]
 
         move = get_action(self.board, src, tgt)
         self.board.push(chess.Move.from_uci(move))
@@ -196,9 +201,9 @@ class PlayLoop:
             trace_collector.append('N/A\n\n\n\n\n\n\n')
             trace_collector.append('N/A\n\n\n\n\n\n\n')
         else:
-            trace_collector.append(str(np.around(policy[0][0, ...], 2)).replace('[[', '')
+            trace_collector.append(str(np.around(policy[0], 2)).replace('[[', '')
                                    .replace(' [ ', '').replace(' [', '').replace(']', ''))
-            trace_collector.append(str(np.around(policy[1][0, ...], 2)).replace('[[', '')
+            trace_collector.append(str(np.around(policy[1], 2)).replace('[[', '')
                                    .replace(' [ ', '').replace(' [', '').replace(']', ''))
 
         if len(trace_collector) == 8:  # two half-moves has been made
@@ -218,8 +223,8 @@ class PlayLoop:
         elif force_flush:
             self.trace.append(PlayLoop.TRACE_FORMAT.format(*PlayLoop.TRACE_HEADER))
             for b1, src1, tgt1 in zip(trace_collector[0].split('\n'),
-                                    trace_collector[2].split('\n'),
-                                    trace_collector[3].split('\n')):
+                                      trace_collector[2].split('\n'),
+                                      trace_collector[3].split('\n')):
                 self.trace.append(PlayLoop.TRACE_FORMAT.format(trace_collector[1], b1, src1, tgt1,
                                                                '', '', '', ''))
                 trace_collector[1] = ''
