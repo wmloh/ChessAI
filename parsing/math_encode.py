@@ -4,7 +4,7 @@ from parsing.parsing_constant import *
 ASCII_a = ord('a')
 
 
-def tensor_encode(board, flip=False):
+def tensor_encode(board, rotate=False, mirror=False):
     '''
     Encodes the board state into a np.ndarray
 
@@ -12,12 +12,15 @@ def tensor_encode(board, flip=False):
     * assert (tensor.sum(axis=2) == np.ones((8,8)).all()
     * assert tensor.shape == (8,8,13)
 
+    Note: flip and mirror CANNOT be both True (undefined behaviour)
+
     :param board: chess.Board - board to be parsed
-    :param flip: bool - flip such that the Black and White swaps and the pieces are swapped too
+    :param rotate: bool - rotate such that the Black and White swaps and the pieces are swapped too
+    :param mirror: bool - mirror such that the Black and White swaps and the pieces are swapped too
     :return: np.ndarray
     '''
     state = board.epd().split(' ', 1)[0]
-    if flip:
+    if rotate or mirror:
         mapper = FLIP_MAP_SYMBOL
     else:
         mapper = MAP_SYMBOL
@@ -34,9 +37,14 @@ def tensor_encode(board, flip=False):
             row.append(mapper[symbol])
     tensor_list.append(row)
 
-    tensor = np.array(tensor_list, dtype=np.int8)
-    if flip:
+    if rotate:
+        tensor = np.array(tensor_list, dtype=np.int8)
         tensor = np.rot90(tensor, 2)  # rotates twice
+    elif mirror:
+        tensor_list = list(reversed(tensor_list))
+        tensor = np.array(tensor_list, dtype=np.int8)
+    else:
+        tensor = np.array(tensor_list, dtype=np.int8)
 
     return tensor
 
@@ -85,23 +93,30 @@ def tensor_decode_fen(state):
     return fen
 
 
-def get_action_tensor(uci_str, flip=False):
+def get_action_tensor(uci_str, rotate=False, mirror=False):
     '''
-    Converts a string of a UCI move object into a bitmap with 2-dimensions
+    Converts a string of a UCI move object into two (8,8) bitmap
         representing which piece to move and where to move it to respectively
 
+    Note: flip and mirror CANNOT be both True (undefined behaviour)
+
     :param uci_str: str - string obtained from chess.Move.uci()
-    :param flip: bool - flip such that the Black and White swaps and the pieces are swapped too
-    :return: np.ndarray - tensor with shape (8, 8, 2) representing action
+    :param rotate: bool - rotate such that the Black and White swaps and the pieces are swapped too
+    :param mirror: bool - mirror such that the Black and White swaps and the pieces are swapped too
+    :return: tuple(np.ndarray, np.ndarray) - 2 tensor with shape (8, 8) representing source and target actions
     '''
-    action_tensor = np.zeros((8, 8, 2), dtype=np.int8)
+    source = np.zeros((8, 8), dtype=np.int8)
+    target = np.zeros((8, 8), dtype=np.int8)
     origin, dest = uci_str[:2], uci_str[2:]
 
-    if flip:
-        action_tensor[int(origin[1]) - 1, 7 - ord(origin[0]) + ASCII_a, 0] = 1
-        action_tensor[int(dest[1]) - 1, 7 - ord(dest[0]) + ASCII_a, 1] = 1
+    if rotate:
+        source[int(origin[1]) - 1, 7 - ord(origin[0]) + ASCII_a] = 1
+        target[int(dest[1]) - 1, 7 - ord(dest[0]) + ASCII_a] = 1
+    elif mirror:
+        source[int(origin[1]) - 1, ord(origin[0]) - ASCII_a] = 1
+        target[int(dest[1]) - 1, ord(dest[0]) - ASCII_a] = 1
     else:
-        action_tensor[8 - int(origin[1]), ord(origin[0]) - ASCII_a, 0] = 1
-        action_tensor[8 - int(dest[1]), ord(dest[0]) - ASCII_a, 1] = 1
+        source[8 - int(origin[1]), ord(origin[0]) - ASCII_a] = 1
+        target[8 - int(dest[1]), ord(dest[0]) - ASCII_a] = 1
 
-    return action_tensor
+    return source, target
