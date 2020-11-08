@@ -19,7 +19,7 @@ DEFAULT_LABELS_NAME = "labels_"
 # obtained from "A Chess Composer of Two-Move Mate Problems"
 # AVERAGE_BRANCHING_FACTOR = 33
 SAMPLING_THRESHOLD = 6
-INITIAL_STATE_PROB = 0.0009696
+INITIAL_STATE_PROB = 0.001325  # 0.0009696
 INITIAL_SAMPLING_RATE = np.array([INITIAL_STATE_PROB * 2 ** i
                                   for i in range(SAMPLING_THRESHOLD)])
 
@@ -29,8 +29,8 @@ INITIAL_SAMPLING_RATE = np.array([INITIAL_STATE_PROB * 2 ** i
 # INITIAL_SAMPLING_RATE = INITIAL_SAMPLING_RATE / INITIAL_SAMPLING_RATE.sum()
 
 
-def sample_intermediate_states(game, states=None, labels=None, actions=None, sampling_rate=0.1,
-                               initial_sampling_rate=INITIAL_SAMPLING_RATE):
+def sample_intermediate_states(game, states=None, labels=None, sources=None, targets=None,
+                               sampling_rate=0.1, initial_sampling_rate=INITIAL_SAMPLING_RATE):
     '''
     For a particular game, converts each board state into Tensors where the first
         n=len(initial_sampling_rate) is randomly sampled depending on the probability and
@@ -43,7 +43,8 @@ def sample_intermediate_states(game, states=None, labels=None, actions=None, sam
     :param game: pgn.Game - game to be sampled
     :param states: None/list - list of states to be appended to (if None, it will return a new list)
     :param labels: None/list - list of labels to be appended to (if None, it will return a new list)
-    :param actions: None/list - list of actions to be appended to (if None, it will return a new list)
+    :param sources: None/list - list of source policy to be appended to (if None, it will return a new list)
+    :param targets: None/list - list of targets policy to be appended to (if None, it will return a new list)
     :param sampling_rate: float - probability of each state being sampled
     :param initial_sampling_rate: np.array(float) - probabilities of initial states being sampled
     :return: tuple(list(Tensor), list(int), list(Tensor))
@@ -55,16 +56,17 @@ def sample_intermediate_states(game, states=None, labels=None, actions=None, sam
                                               size=(len(initial_sampling_rate, )))
     sample_array = np.random.binomial(1, p=sampling_rate, size=(100,))
 
-    if states is None or labels is None or actions is None:
+    if states is None or labels is None or sources is None or targets is None:
         states = list()
         labels = list()
-        actions = list()
+        sources = list()
+        targets = list()
 
     outcome = game.headers['Result']
     outcome = 1 if outcome == WHITE_WIN else 0  # no draws
 
     prob_count = -1
-    flip = False  # since White always starts first
+    mirror = False  # since White always starts first
     current_sampling_arr = initial_sample_array
 
     for move in game.mainline_moves():
@@ -76,32 +78,36 @@ def sample_intermediate_states(game, states=None, labels=None, actions=None, sam
             current_sampling_arr = sample_array
 
         if current_sampling_arr[prob_count]:  # saves to dataset only if 1
-            states.append(tensor_encode(current_board, flip=flip))
-            actions.append(get_action_tensor(move.uci(), flip=flip))
+            states.append(tensor_encode(current_board, mirror=mirror))
+            src, tgt = get_action_tensor(move.uci(), mirror=mirror)
+            sources.append(src)
+            targets.append(tgt)
             labels.append(outcome)
 
         current_board.push(move)
-        flip = not flip  # inverts flip
+        mirror = not mirror  # inverts mirror
         outcome = 1 - outcome  # alternating pattern of win/lose
 
-    return states, labels, actions
+    return states, labels, sources, targets
 
 
 def generate_dataset(data_path, LIMIT=-1, sampling_rate=0.1):
     '''
     Samples and generates the dataset as a Numpy ndarray which includes
-        states, labels and actions.
+        states, labels and actions (source and target policy).
 
     Note: Skips games that results in draws
 
     :param data_path: str - path to the PGN file
     :param LIMIT: -1/int - number of games to store (-1 means all)
     :param sampling_rate: float - probability of each state being sampled
-    :return: tuple(np.ndarray, np.array, np.ndarray)
+    :return: tuple(np.ndarray, np.array, np.ndarray, np.ndarray)
     '''
+
     all_states = list()
     all_labels = list()
-    all_actions = list()
+    all_sources = list()
+    all_targets = list()
 
     with open(data_path, 'r') as f:
         game = chess.pgn.read_game(f)
@@ -112,14 +118,16 @@ def generate_dataset(data_path, LIMIT=-1, sampling_rate=0.1):
                 sample_intermediate_states(game,
                                            states=all_states,
                                            labels=all_labels,
-                                           actions=all_actions,
+                                           sources=all_sources,
+                                           targets=all_targets,
                                            sampling_rate=sampling_rate)
                 count += 1
             game = chess.pgn.read_game(f)
 
     return np.array(all_states, dtype=np.int8), \
            np.array(all_labels, dtype=np.int8), \
-           np.array(all_actions, dtype=np.int8)
+           np.array(all_sources, dtype=np.int8), \
+           np.array(all_targets, dtype=np.int8)
 
 
 def parse_pgn(data_path, LIMIT=-1):

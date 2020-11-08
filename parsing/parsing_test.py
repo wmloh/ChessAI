@@ -28,10 +28,11 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(tensor_1.shape, (8, 8, 13))
         self.assertTrue((tensor_1 == self.STARTING_STATE).all())
 
-        states, labels, actions = generate_dataset('../data/sample_data.pgn', LIMIT=3)
+        states, labels, sources, targets = generate_dataset('../data/sample_data.pgn', LIMIT=3)
 
         self.assertEqual(states.shape[1:], (8, 8, 13))
-        self.assertEqual(actions.shape[1:], (8, 8, 2))
+        self.assertEqual(sources.shape[1:], (8, 8))
+        self.assertEqual(targets.shape[1:], (8, 8))
 
         test_state = states[34, ...]
 
