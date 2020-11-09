@@ -1,5 +1,6 @@
 import numpy as np
 import chess
+import chess.engine
 
 from tkinter.filedialog import asksaveasfilename
 from parsing.math_encode import tensor_encode, tensor_decode
@@ -13,12 +14,12 @@ class PlayLoop:
     TRACE_FORMAT = '{:<7}{:<18}{:<42}{:<45}{:<7}{:<18}{:<42}{}'
     TRACE_HEADER = ('move', 'WHITE', 'source', 'target', 'move', 'BLACK', 'source', 'target')
 
-    def __init__(self, policy, secondary_policy=None):
+    def __init__(self, policy, secondary_policy=None, engine_path='../engine/stockfish.exe'):
         '''
         Constructs a PlayLoop instance
 
         :param policy: PolicyModel - primary AI agent to simulate
-        :param secondary_policy: None/PolicyModel/'same' - AI agent used to replace player moves
+        :param secondary_policy: None/PolicyModel/'same'/'stockfish' - Agent used to replace player moves
             (if None, human is playing; if 'same', secondary_policy=policy)
         '''
         self.policy = policy
@@ -26,10 +27,14 @@ class PlayLoop:
         self.board = None
         self.keep_trace = False
         self.trace = None
+        self.engine = None
 
         if secondary_policy is not None:
             if secondary_policy == 'same':
                 self.player_move_func = lambda: self._get_action_from_policy(policy)
+            elif secondary_policy == 'stockfish':
+                self.player_move_func = self._get_stockfish
+                self.engine = chess.engine.SimpleEngine.popen_uci(engine_path)
             else:
                 self.player_move_func = lambda: self._get_action_from_policy(secondary_policy)
         else:
@@ -168,7 +173,7 @@ class PlayLoop:
         '''
         Obtains the move from the player by command line and pushes the move on the board
 
-        :return: str
+        :return: str, None
         '''
         while True:  # handles invalid player moves
             try:
@@ -183,6 +188,20 @@ class PlayLoop:
             else:
                 break
         return move_input, None
+
+    def _get_stockfish(self, time=0.001, depth=1):
+        '''
+        Obtains the move from the Stockfish engine with the lowest ELO ratings
+
+        :param time: float - time limit for the engine
+        :param depth: int - maximum search depth
+        :return: str, None
+        '''
+        move = self.engine.play(self.board, chess.engine.Limit(time=time, depth=depth),
+                                ponder=False, options={'uci_elo': 1350}).move
+        self.board.push(move)
+
+        return move.uci(), None
 
     def _store_trace(self, move, trace_collector, policy=None, force_flush=False):
         '''
