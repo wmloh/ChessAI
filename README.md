@@ -2,7 +2,7 @@
 
 ## Summary
 
-ChessAI is a project that aims to explore the viability of developing an agent of sufficient caliber in computer chess, under the constraints of limited compute resources. Unlike the popular [AlphaZero] (https://arxiv.org/pdf/1712.01815.pdf) by Google DeepMind, many researchers are not blessed with extensive computing systems that can perform extensive sampling and model optimizations. Instead, our team focuses on maximizing the performance with minimal compute resources and time. The complete implementation took 4 weeks by three part-time contributors.
+ChessAI is a project that aims to explore the viability of developing an agent of sufficient caliber in computer chess, under the constraints of limited compute resources. Unlike the popular [AlphaZero](https://arxiv.org/pdf/1712.01815.pdf) by Google DeepMind, many researchers are not blessed with extensive computing systems that can perform extensive sampling and model optimizations. Instead, our team focuses on maximizing the performance with minimal compute resources and time. The complete implementation took 4 weeks by three part-time contributors.
 
 ------
 
@@ -10,11 +10,11 @@ ChessAI is a project that aims to explore the viability of developing an agent o
 
 ### Data Processing
 
-This is a basic data processing feature offered (in `parsing`) which reads a series of chess games in a PGN format. The games are converted into tuples of states, source action, target action and value. The board states of each game are sampled sparsely, with a default of 0.1 probability of each tuple being sampled.
+This is a basic data processing feature offered (in `parsing`) which reads a series of chess games in PGN format. The games are converted into tuples of states, source action, target action and value. The board states of each game are sampled sparsely, with a default of 0.1 probability of each tuple being sampled.
 
 ### Policy Network
 
-The primary feature of this project is the ability to develop a multi-head convolutional neural network that takes in a board tensor and returns the source action, target action and value.
+The primary feature of this project is the ability to develop a multi-head convolutional neural network that takes in a board tensor and returns the source action, target action and value. The architecture of the `PolicyModel` is inspired by [ResNet](https://arxiv.org/pdf/1512.03385.pdf) which contains shortcut connections.
 
 ### Monte-Carlo Tree Search
 
@@ -63,8 +63,8 @@ from model.policy_model import PolicyModel
 policy = PolicyModel(state.shape[1:], (64, 1))
 policy.construct(10, 4)  # number of residual and "sandwich" blocks
 policy.train(x=states, y=[sources.reshape(-1, 64),
-						  targets.reshape(-1, 64),
-						  labels],
+					    targets.reshape(-1, 64),
+					    labels],
 			 epochs=1,
 			 batch_size=512)
 ```
