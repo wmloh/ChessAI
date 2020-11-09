@@ -120,3 +120,4 @@ def get_action_tensor(uci_str, rotate=False, mirror=False):
         target[8 - int(dest[1]), ord(dest[0]) - ASCII_a] = 1
 
     return source, target
+
