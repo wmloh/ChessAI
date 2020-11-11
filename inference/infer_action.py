@@ -125,7 +125,7 @@ def get_action(board, sources, targets):
                 promote = False
                 square_name = coords_to_chess_square(source)
                 if board.piece_type_at(square_name) == PAWN \
-                        and suggested_target[0] < BOARD_DIM[0]:
+                        and (suggested_target[0] < BOARD_DIM[0] or suggested_target[0] >= FIRST_SQUARE_LAST_ROW):
                     promote = True
 
                 return coords_to_uci_move(source, suggested_target[0], promote)
