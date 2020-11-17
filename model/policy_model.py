@@ -125,7 +125,7 @@ class PolicyModel:
         :param kwargs: dict(String, *) - keyword arguments for self.model.fit
         :return: None
         '''
-        self.model.fit(**kwargs)
+        return self.model.fit(**kwargs)
 
     def predict(self, state, **kwargs):
         '''
