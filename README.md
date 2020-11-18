@@ -90,6 +90,10 @@ p1.loop(verbose=True)
 trace = pl.get_trace()  # move history
 ```
 
+After completing a game on command line, you can save `trace` to a text file. This is a sample output of the `trace`.
+![sample output](asset/sample_output.png)
+
+In the sample game, it is a match between the trained agent playing as White and a human playing as Black. The first four columns pertain to the White player and the last four columns pertain to the Black player. The source and target columns show the probabilities of the trained agent taking those actions.
 
 ------
 
